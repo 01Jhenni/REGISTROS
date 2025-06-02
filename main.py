@@ -5,18 +5,15 @@ import io
 import base64
 from supabase import create_client, Client
 
-# --- Configurações Supabase ---
 SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- Usuários e senhas ---
 USERS = {
     "IMPORT": "import123",
     "FISCAL": "fisc123"
 }
 
-# --- Controle de permissões ---
 PERMISSIONS = {
     "IMPORT": {"can_register": True, "can_view": True},
     "FISCAL": {"can_register": False, "can_view": True}
@@ -43,14 +40,12 @@ if not st.session_state['logged_in']:
     login()
     st.stop()
 
-# --- Funções auxiliares ---
 def image_to_base64(image_file):
     return base64.b64encode(image_file.read()).decode()
 
 def base64_to_image(base64_str):
     return Image.open(io.BytesIO(base64.b64decode(base64_str)))
 
-# --- Funções Supabase ---
 def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
     data = {
         "empresa": empresa,
@@ -73,7 +68,6 @@ def fetch_registro(filtro_empresa=None, filtro_tipo=None):
         return pd.DataFrame()
     return pd.DataFrame(response.data)
 
-# --- Configurações iniciais ---
 tipos_arquivos = [
     "NFE entrada", "NFE saída", "CTE entrada", "CTE saída", 
     "CTE cancelado", "SPED", "NFCE", "NFS tomado", "NFS prestado", "PLANILHA"
@@ -91,8 +85,6 @@ empresas = dict(zip(empresas_df['nome'], empresas_df['cnpj']))
 st.set_page_config(page_title="Registro de Importações", layout="wide")
 st.title(f"📑 Sistema de Registro e Consulta de Importações — Usuário: {st.session_state['username']}")
 
-# --- Controle das abas com base nas permissões ---
-# --- Controle das abas com base nas permissões ---
 tabs = []
 if st.session_state['permissions']['can_register']:
     tabs.append("Registrar Importação")
@@ -101,7 +93,6 @@ if st.session_state['permissions']['can_view']:
 
 abas = st.tabs(tabs)
 
-# Para cada aba, monta a interface
 for idx, nome_aba in enumerate(tabs):
     with abas[idx]:
         if nome_aba == "Registrar Importação":

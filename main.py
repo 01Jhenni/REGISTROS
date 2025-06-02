@@ -61,16 +61,15 @@ st.title("📑 Sistema de Registro e Consulta de Erros")
 # Seleção de usuário
 usuario = st.sidebar.selectbox("Selecione seu perfil:", ["IMPORT", "FISCAL"])
 
-# Upload do CSV de empresas
-empresas_file = st.sidebar.file_uploader("Anexe a lista de empresas (.csv):", type=["csv"])
 
-if empresas_file is not None:
-    empresas_df = pd.read_csv(empresas_file, encoding='latin1', sep=';')
-    empresas_df.columns = empresas_df.columns.str.strip().str.lower()
+empresas_df = pd.read_csv("C:\\Users\\Jhenni\\Downloads\\empresas (2).csv", encoding='latin1', sep=';')
+empresas_df.columns = empresas_df.columns.str.strip().str.lower()
 
-    if 'nome' not in empresas_df.columns or 'cnpj' not in empresas_df.columns:
-        st.error("CSV deve conter colunas 'nome' e 'cnpj'.")
-        st.stop()
+if 'nome' not in empresas_df.columns or 'cnpj' not in empresas_df.columns:
+    st.error("CSV deve conter colunas 'nome' e 'cnpj'.")
+    st.stop()
+
+empresas = dict(zip(empresas_df['nome'], empresas_df['cnpj']))
 
     empresas = dict(zip(empresas_df['nome'], empresas_df['cnpj']))
 

@@ -1,12 +1,5 @@
-import streamlit as st
-import pandas as pd
-from PIL import Image
-import io
-import base64
-from supabase import create_client, Client
 
-# --- Configurações Supabase ---
-SUPABASE_URL = "import streamlit as st
+SUPABASE_URL = import streamlit as st
 import pandas as pd
 from PIL import Image
 import io

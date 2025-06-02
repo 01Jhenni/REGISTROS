@@ -6,7 +6,7 @@ import base64
 from supabase import create_client, Client
 
 # --- Configurações Supabase ---
-SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"  # Substitua pela sua URL Supabase
+SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -142,11 +142,14 @@ if "Visualizar Registros" in tabs:
             st.info("Nenhum registro encontrado com os filtros selecionados.")
         else:
             for idx, registro in registros_filtrados.iterrows():
-                if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
-    st.write(f"**Descrição:** {registro['descricao']}")
-else:
-    st.write("**Descrição:** Nenhuma descrição informada.")
+                with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
+                    if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
+                        st.write(f"**Descrição:** {registro['descricao']}")
+                    else:
+                        st.write("**Descrição:** Nenhuma descrição informada.")
 
+                    if pd.notna(registro["imagem_base64"]):
+                        st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
 
         st.subheader("Exportar Registros Filtrados")
         col1, col2 = st.columns(2)

@@ -92,74 +92,73 @@ st.set_page_config(page_title="Registro de Importações", layout="wide")
 st.title(f"📑 Sistema de Registro e Consulta de Importações — Usuário: {st.session_state['username']}")
 
 # --- Controle das abas com base nas permissões ---
+# --- Controle das abas com base nas permissões ---
 tabs = []
 if st.session_state['permissions']['can_register']:
     tabs.append("Registrar Importação")
 if st.session_state['permissions']['can_view']:
     tabs.append("Visualizar Registro")
 
-aba1, aba2 = st.tabs(tabs)
+abas = st.tabs(tabs)
 
-# Aba de Registrar Importação (se permitido)
-if "Registrar Importação" in tabs:
-    with aba1:
-        st.header("Registrar uma nova importação")
+# Para cada aba, monta a interface
+for idx, nome_aba in enumerate(tabs):
+    with abas[idx]:
+        if nome_aba == "Registrar Importação":
+            st.header("Registrar uma nova importação")
 
-        empresa = st.selectbox("Nome da Empresa:", list(empresas.keys()))
-        cnpj = empresas[empresa]
-        tipo_arquivo = st.selectbox("Tipo de Arquivo Importado:", tipos_arquivos)
-        imagem_erro = st.file_uploader("Anexe uma imagem do erro (opcional):", type=["png", "jpg", "jpeg"])
-        descricao = st.text_area("Descrição do erro (opcional):")
+            empresa = st.selectbox("Nome da Empresa:", list(empresas.keys()))
+            cnpj = empresas[empresa]
+            tipo_arquivo = st.selectbox("Tipo de Arquivo Importado:", tipos_arquivos)
+            imagem_erro = st.file_uploader("Anexe uma imagem do erro (opcional):", type=["png", "jpg", "jpeg"])
+            descricao = st.text_area("Descrição do erro (opcional):")
 
-        if st.button("Registrar Importação"):
-            imagem_base64 = None
-            if imagem_erro:
-                imagem_base64 = image_to_base64(imagem_erro)
+            if st.button("Registrar Importação"):
+                imagem_base64 = None
+                if imagem_erro:
+                    imagem_base64 = image_to_base64(imagem_erro)
 
-            registro_empresa = f"{empresa} - {cnpj}"
-            insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao)
-            st.success("Importação registrada com sucesso!")
+                registro_empresa = f"{empresa} - {cnpj}"
+                insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao)
+                st.success("Importação registrada com sucesso!")
 
-# Aba de Visualizar Registros (se permitido)
-if "Visualizar Registro" in tabs:
-    idx = 0 if "Registrar Importação" not in tabs else 1
-    with (aba1 if idx == 0 else aba2):
-        st.header("Visualização e Filtros de Registros")
+        elif nome_aba == "Visualizar Registro":
+            st.header("Visualização e Filtros de Registros")
 
-        df_todos = fetch_registro()
-        empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
-        tipos_unicos = df_todos['tipo_arquivo'].unique() if not df_todos.empty else []
+            df_todos = fetch_registro()
+            empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
+            tipos_unicos = df_todos['tipo_arquivo'].unique() if not df_todos.empty else []
 
-        st.subheader("Filtros")
-        filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
-        filtro_tipo = st.multiselect("Filtrar por Tipo de Arquivo:", tipos_unicos)
+            st.subheader("Filtros")
+            filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
+            filtro_tipo = st.multiselect("Filtrar por Tipo de Arquivo:", tipos_unicos)
 
-        registro_filtrados = fetch_registro(filtro_empresa, filtro_tipo)
+            registro_filtrados = fetch_registro(filtro_empresa, filtro_tipo)
 
-        st.subheader("Visualizar Detalhes dos Registros")
+            st.subheader("Visualizar Detalhes dos Registros")
 
-        if registro_filtrados.empty:
-            st.info("Nenhum registro encontrado com os filtros selecionados.")
-        else:
-            for idx, registro in registro_filtrados.iterrows():
-                with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
-                    if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
-                        st.write(f"**Descrição:** {registro['descricao']}")
-                    else:
-                        st.write("**Descrição:** Nenhuma descrição informada.")
+            if registro_filtrados.empty:
+                st.info("Nenhum registro encontrado com os filtros selecionados.")
+            else:
+                for idx, registro in registro_filtrados.iterrows():
+                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
+                        if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
+                            st.write(f"**Descrição:** {registro['descricao']}")
+                        else:
+                            st.write("**Descrição:** Nenhuma descrição informada.")
 
-                    if pd.notna(registro["imagem_base64"]):
-                        st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+                        if pd.notna(registro["imagem_base64"]):
+                            st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
 
-        st.subheader("Exportar Registros Filtrados")
-        col1, col2 = st.columns(2)
+            st.subheader("Exportar Registros Filtrados")
+            col1, col2 = st.columns(2)
 
-        with col1:
-            if st.button("Exportar para Excel"):
-                registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
-                st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
+            with col1:
+                if st.button("Exportar para Excel"):
+                    registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
+                    st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
 
-        with col2:
-            if st.button("Exportar para CSV"):
-                registro_filtrados.to_csv("registro_filtrados.csv", index=False)
-                st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")
+            with col2:
+                if st.button("Exportar para CSV"):
+                    registro_filtrados.to_csv("registro_filtrados.csv", index=False)
+                    st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")

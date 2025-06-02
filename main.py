@@ -72,7 +72,7 @@ tipos_arquivos = [
     "CTE cancelado", "SPED", "NFCE", "NFS tomado", "NFS prestado", "PLANILHA"
 ]
 
-empresas_df = pd.read_csv("C:\\Users\\Jhenni\\Downloads\\empresas (2).csv", encoding='latin1', sep=';')
+empresas_df = pd.read_csv("empresas (2).csv", encoding='latin1', sep=';')
 empresas_df.columns = empresas_df.columns.str.strip().str.lower()
 
 if 'nome' not in empresas_df.columns or 'cnpj' not in empresas_df.columns:

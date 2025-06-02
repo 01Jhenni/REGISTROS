@@ -142,13 +142,11 @@ if "Visualizar Registros" in tabs:
             st.info("Nenhum registro encontrado com os filtros selecionados.")
         else:
             for idx, registro in registros_filtrados.iterrows():
-                with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
-                    if registro['descricao']:
-                        st.write(f"**Descrição:** {registro['descricao']}")
-                    else:
-                        st.write("**Descrição:** Nenhuma descrição informada.")
-                    if pd.notna(registro["imagem_base64"]):
-                        st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+                if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
+    st.write(f"**Descrição:** {registro['descricao']}")
+else:
+    st.write("**Descrição:** Nenhuma descrição informada.")
+
 
         st.subheader("Exportar Registros Filtrados")
         col1, col2 = st.columns(2)

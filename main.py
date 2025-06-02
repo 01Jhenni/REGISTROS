@@ -1,165 +1,88 @@
 import streamlit as st
-import pandas as pd
 from PIL import Image
 import io
 import base64
+import pandas as pd
+from datetime import datetime
 from supabase import create_client, Client
 
-# --- Configurações Supabase ---
-SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Configurações do Supabase
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
-# --- Usuários e senhas ---
-USERS = {
-    "IMPORT": "import123",
-    "FISCAL": "fisc123"
-}
+st.set_page_config(page_title="Registro de Erros - HENRIQUE", layout="wide")
+st.title("Registro de Erros - HENRIQUE")
 
-# --- Controle de permissões ---
-PERMISSIONS = {
-    "IMPORT": {"can_register": True, "can_view": True},
-    "FISCAL": {"can_register": False, "can_view": True}
-}
+def image_to_base64(image: Image.Image) -> str:
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
 
-def login():
-    st.title("🔐 Login")
-    username = st.text_input("Usuário:")
-    password = st.text_input("Senha:", type="password")
-    if st.button("Entrar"):
-        if username in USERS and USERS[username] == password:
-            st.session_state['logged_in'] = True
-            st.session_state['username'] = username
-            st.session_state['permissions'] = PERMISSIONS.get(username, {"can_register": False, "can_view": False})
-        else:
-            st.error("Usuário ou senha incorretos")
+def base64_to_image(base64_str: str) -> Image.Image:
+    image_data = base64.b64decode(base64_str)
+    return Image.open(io.BytesIO(image_data))
 
-if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = False
-    st.session_state['username'] = None
-    st.session_state['permissions'] = {"can_register": False, "can_view": False}
-
-if not st.session_state['logged_in']:
-    login()
-    st.stop()
-
-# --- Funções auxiliares ---
-def image_to_base64(image_file):
-    return base64.b64encode(image_file.read()).decode()
-
-def base64_to_image(base64_str):
-    return Image.open(io.BytesIO(base64.b64decode(base64_str)))
-
-# --- Funções Supabase ---
-def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
+def save_registro(empresa, tipo_arquivo, descricao, imagem_base64):
     data = {
         "empresa": empresa,
         "tipo_arquivo": tipo_arquivo,
+        "descricao": descricao,
         "imagem_base64": imagem_base64,
-        "descricao": descricao
+        "data_hora": datetime.now().isoformat()
     }
-    response = supabase.table('registros').insert(data).execute()
+    response = supabase.table("registros").insert(data).execute()
     return response
 
-def fetch_registros(filtro_empresa=None, filtro_tipo=None):
-    query = supabase.table('registros').select("*")
-    if filtro_empresa:
-        query = query.in_("empresa", filtro_empresa)
-    if filtro_tipo:
-        query = query.in_("tipo_arquivo", filtro_tipo)
-    response = query.execute()
-    if hasattr(response, "error") and response.error:
-        st.error(f"Erro ao buscar dados: {response.error.message}")
-        return pd.DataFrame()
-    return pd.DataFrame(response.data)
+def fetch_registros():
+    response = supabase.table("registros").select("*").execute()
+    data = response.data
+    return pd.DataFrame(data)
 
-# --- Configurações iniciais ---
-tipos_arquivos = [
-    "NFE entrada", "NFE saída", "CTE entrada", "CTE saída", 
-    "CTE cancelado", "SPED", "NFCE", "NFS tomado", "NFS prestado", "PLANILHA"
-]
+# Formulário para registro
+with st.form("registro_form"):
+    empresa = st.selectbox("Selecione a empresa", ["Henrique", "Henrique Import", "Auto Peças", "Henrique Auto Peças"])
+    tipo_arquivo = st.selectbox("Selecione o tipo de arquivo", ["XML", "TXT", "OUTRO"])
+    descricao = st.text_area("Descrição do erro", placeholder="Descreva o erro encontrado...")
+    imagem = st.file_uploader("Upload de imagem (opcional)", type=["png", "jpg", "jpeg"])
 
-empresas_df = pd.read_csv("empresas (2).csv", encoding='latin1', sep=';')
-empresas_df.columns = empresas_df.columns.str.strip().str.lower()
+    submitted = st.form_submit_button("Salvar Registro")
 
-if 'nome' not in empresas_df.columns or 'cnpj' not in empresas_df.columns:
-    st.error("CSV deve conter colunas 'nome' e 'cnpj'.")
-    st.stop()
+    if submitted:
+        imagem_base64 = None
+        if imagem:
+            image = Image.open(imagem)
+            imagem_base64 = image_to_base64(image)
+        
+        save_registro(empresa, tipo_arquivo, descricao, imagem_base64)
+        st.success("Registro salvo com sucesso!")
 
-empresas = dict(zip(empresas_df['nome'], empresas_df['cnpj']))
+st.write("---")
+st.header("📋 Registros Salvos")
 
-st.set_page_config(page_title="Registro de Importações", layout="wide")
-st.title(f"📑 Sistema de Registro e Consulta de Importações — Usuário: {st.session_state['username']}")
+# Filtros
+registros_df = fetch_registros()
 
-# --- Controle das abas com base nas permissões ---
-tabs = []
-if st.session_state['permissions']['can_register']:
-    tabs.append("Registrar Importação")
-if st.session_state['permissions']['can_view']:
-    tabs.append("Visualizar Registros")
+if not registros_df.empty:
+    empresa_filtro = st.multiselect("Filtrar por empresa", registros_df["empresa"].unique(), default=registros_df["empresa"].unique())
+    tipo_filtro = st.multiselect("Filtrar por tipo de arquivo", registros_df["tipo_arquivo"].unique(), default=registros_df["tipo_arquivo"].unique())
 
-aba1, aba2 = st.tabs(tabs)
+    registros_filtrados = registros_df[
+        (registros_df["empresa"].isin(empresa_filtro)) &
+        (registros_df["tipo_arquivo"].isin(tipo_filtro))
+    ]
 
-# Aba de Registrar Importação (se permitido)
-if "Registrar Importação" in tabs:
-    with aba1:
-        st.header("Registrar uma nova importação")
+    for idx, registro in registros_filtrados.iterrows():
+        with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
+            if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
+                st.write(f"**Descrição:** {registro['descricao']}")
+            else:
+                st.write("**Descrição:** Nenhuma descrição informada.")
 
-        empresa = st.selectbox("Nome da Empresa:", list(empresas.keys()))
-        cnpj = empresas[empresa]
-        tipo_arquivo = st.selectbox("Tipo de Arquivo Importado:", tipos_arquivos)
-        imagem_erro = st.file_uploader("Anexe uma imagem do erro (opcional):", type=["png", "jpg", "jpeg"])
-        descricao = st.text_area("Descrição do erro (opcional):")
+            if "imagem_base64" in registro and pd.notna(registro["imagem_base64"]):
+                st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+            else:
+                st.write("**Imagem:** Nenhuma imagem anexada.")
 
-        if st.button("Registrar Importação"):
-            imagem_base64 = None
-            if imagem_erro:
-                imagem_base64 = image_to_base64(imagem_erro)
-
-            registro_empresa = f"{empresa} - {cnpj}"
-            insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao)
-            st.success("Importação registrada com sucesso!")
-
-# Aba de Visualizar Registros (se permitido)
-if "Visualizar Registros" in tabs:
-    idx = 0 if "Registrar Importação" not in tabs else 1
-    with (aba1 if idx == 0 else aba2):
-        st.header("Visualização e Filtros de Registros")
-
-        df_todos = fetch_registros()
-        empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
-        tipos_unicos = df_todos['tipo_arquivo'].unique() if not df_todos.empty else []
-
-        st.subheader("Filtros")
-        filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
-        filtro_tipo = st.multiselect("Filtrar por Tipo de Arquivo:", tipos_unicos)
-
-        registros_filtrados = fetch_registros(filtro_empresa, filtro_tipo)
-
-        st.subheader("Visualizar Detalhes dos Registros")
-
-        if registros_filtrados.empty:
-            st.info("Nenhum registro encontrado com os filtros selecionados.")
-        else:
-            for idx, registro in registros_filtrados.iterrows():
-                with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
-                    if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
-                        st.write(f"**Descrição:** {registro['descricao']}")
-                    else:
-                        st.write("**Descrição:** Nenhuma descrição informada.")
-
-                    if pd.notna(registro["imagem_base64"]):
-                        st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
-
-        st.subheader("Exportar Registros Filtrados")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Exportar para Excel"):
-                registros_filtrados.to_excel("registros_filtrados.xlsx", index=False)
-                st.success("Arquivo 'registros_filtrados.xlsx' gerado com sucesso!")
-
-        with col2:
-            if st.button("Exportar para CSV"):
-                registros_filtrados.to_csv("registros_filtrados.csv", index=False)
-                st.success("Arquivo 'registros_filtrados.csv' gerado com sucesso!")
+else:
+    st.info("Nenhum registro encontrado.")

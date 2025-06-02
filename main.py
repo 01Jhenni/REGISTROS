@@ -143,7 +143,7 @@ with aba2:
         if st.button("Exportar para CSV"):
             registros_filtrados.to_csv("registros_filtrados.csv", index=False)
             st.success("Arquivo 'registros_filtrados.csv' gerado com sucesso!")
-"  # Substitua pela sua URL Supabase
+ # Substitua pela sua URL Supabase
 SUPABASE_KEY = "sua_api_key"                      # Substitua pela sua chave de API
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 

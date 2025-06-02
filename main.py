@@ -58,11 +58,11 @@ def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
         "imagem_base64": imagem_base64,
         "descricao": descricao
     }
-    response = supabase.table('registros').insert(data).execute()
+    response = supabase.table('registro').insert(data).execute()
     return response
 
-def fetch_registros(filtro_empresa=None, filtro_tipo=None):
-    query = supabase.table('registros').select("*")
+def fetch_registro(filtro_empresa=None, filtro_tipo=None):
+    query = supabase.table('registro').select("*")
     if filtro_empresa:
         query = query.in_("empresa", filtro_empresa)
     if filtro_tipo:
@@ -96,7 +96,7 @@ tabs = []
 if st.session_state['permissions']['can_register']:
     tabs.append("Registrar Importação")
 if st.session_state['permissions']['can_view']:
-    tabs.append("Visualizar Registros")
+    tabs.append("Visualizar Registro")
 
 aba1, aba2 = st.tabs(tabs)
 
@@ -121,12 +121,12 @@ if "Registrar Importação" in tabs:
             st.success("Importação registrada com sucesso!")
 
 # Aba de Visualizar Registros (se permitido)
-if "Visualizar Registros" in tabs:
+if "Visualizar Registro" in tabs:
     idx = 0 if "Registrar Importação" not in tabs else 1
     with (aba1 if idx == 0 else aba2):
         st.header("Visualização e Filtros de Registros")
 
-        df_todos = fetch_registros()
+        df_todos = fetch_registro()
         empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
         tipos_unicos = df_todos['tipo_arquivo'].unique() if not df_todos.empty else []
 
@@ -134,14 +134,14 @@ if "Visualizar Registros" in tabs:
         filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
         filtro_tipo = st.multiselect("Filtrar por Tipo de Arquivo:", tipos_unicos)
 
-        registros_filtrados = fetch_registros(filtro_empresa, filtro_tipo)
+        registro_filtrados = fetch_registro(filtro_empresa, filtro_tipo)
 
         st.subheader("Visualizar Detalhes dos Registros")
 
-        if registros_filtrados.empty:
+        if registro_filtrados.empty:
             st.info("Nenhum registro encontrado com os filtros selecionados.")
         else:
-            for idx, registro in registros_filtrados.iterrows():
+            for idx, registro in registro_filtrados.iterrows():
                 with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
                     if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
                         st.write(f"**Descrição:** {registro['descricao']}")
@@ -156,10 +156,10 @@ if "Visualizar Registros" in tabs:
 
         with col1:
             if st.button("Exportar para Excel"):
-                registros_filtrados.to_excel("registros_filtrados.xlsx", index=False)
-                st.success("Arquivo 'registros_filtrados.xlsx' gerado com sucesso!")
+                registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
+                st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
 
         with col2:
             if st.button("Exportar para CSV"):
-                registros_filtrados.to_csv("registros_filtrados.csv", index=False)
-                st.success("Arquivo 'registros_filtrados.csv' gerado com sucesso!")
+                registro_filtrados.to_csv("registro_filtrados.csv", index=False)
+                st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")

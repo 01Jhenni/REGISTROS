@@ -194,7 +194,7 @@ for idx, nome_aba in enumerate(tabs):
                             if st.button(f"Marcar como OK (ID: {registro['id']})", key=f"btn_ok_{registro['id']}"):
                                 update_status_registro(registro['id'], "Ok")
                                 st.success(f"Status do registro ID {registro['id']} atualizado para OK!")
-                                st.experimental_rerun()
+                                st.rerun()
 
             st.subheader("Exportar Registros Filtrados")
             col1, col2 = st.columns(2)

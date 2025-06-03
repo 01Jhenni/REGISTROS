@@ -71,6 +71,7 @@ def fetch_registro(filtro_empresa=None, filtro_status=None):
         return pd.DataFrame()
     return pd.DataFrame(response.data)
 
+
 def update_status_registro(registro_id, novo_status):
     response = supabase.table('registro').update({"status": novo_status}).eq('id', registro_id).execute()
     return response
@@ -121,48 +122,44 @@ for idx, nome_aba in enumerate(tabs):
                 st.success("Importação registrada com sucesso!")
 
         elif nome_aba == "Visualizar Registro":
-            st.header("Visualização e Filtros de Registros")
+    st.header("Visualização e Filtros de Registros")
 
-            df_todos = fetch_registro()
-            empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
-            status_unicos = df_todos['status'].unique() if not df_todos.empty else []
+    df_todos = fetch_registro()
+    empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
+    status_unicos = df_todos['status'].unique() if not df_todos.empty else []
 
-            st.subheader("Filtros")
-            filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
-            filtro_status = st.multiselect("Filtrar por Status:", status_unicos)
+    st.subheader("Filtros")
+    filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
+    filtro_status = st.multiselect("Filtrar por Status:", status_unicos)
 
-            registro_filtrados = fetch_registro(filtro_empresa, filtro_status)
+    registro_filtrados = fetch_registro(filtro_empresa, filtro_status)
 
-            st.subheader("Visualizar Detalhes dos Registros")
+    st.subheader("Visualizar Detalhes dos Registros")
 
-            if registro_filtrados.empty:
-                st.info("Nenhum registro encontrado com os filtros selecionados.")
-            else:
-                for idx, registro in registro_filtrados.iterrows():
-                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro['status']}"):
-                        if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
-                            st.write(f"**Descrição:** {registro['descricao']}")
-                        else:
-                            st.write("**Descrição:** Nenhuma descrição informada.")
+    if registro_filtrados.empty:
+        st.info("Nenhum registro encontrado com os filtros selecionados.")
+    else:
+        for idx, registro in registro_filtrados.iterrows():
+            with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro['status']}"):
+                st.write(f"**Status:** {registro['status']}")
 
-                        if pd.notna(registro["imagem_base64"]):
-                            st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+                if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
+                    st.write(f"**Descrição:** {registro['descricao']}")
+                else:
+                    st.write("**Descrição:** Nenhuma descrição informada.")
 
-                        # ✅ Botão para alterar status para OK
-                        if registro['status'] == "Pendente":
-                            if st.button(f"Marcar como OK - ID: {registro['id']}", key=f"ok_{registro['id']}"):
-                                update_status_registro(registro['id'], "OK")
-                                st.success("Status alterado para OK. Recarregue a página.")
+                if pd.notna(registro["imagem_base64"]):
+                    st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
 
-            st.subheader("Exportar Registros Filtrados")
-            col1, col2 = st.columns(2)
+    st.subheader("Exportar Registros Filtrados")
+    col1, col2 = st.columns(2)
 
-            with col1:
-                if st.button("Exportar para Excel"):
-                    registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
-                    st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
+    with col1:
+        if st.button("Exportar para Excel"):
+            registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
+            st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
 
-            with col2:
-                if st.button("Exportar para CSV"):
-                    registro_filtrados.to_csv("registro_filtrados.csv", index=False)
-                    st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")
+    with col2:
+        if st.button("Exportar para CSV"):
+            registro_filtrados.to_csv("registro_filtrados.csv", index=False)
+            st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")

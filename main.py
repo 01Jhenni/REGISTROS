@@ -9,11 +9,18 @@ import os
 from supabase import create_client
 
 # Carregar as variáveis do .env
-load_dotenv()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+def get_supabase_client():
+    load_dotenv()
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    if not url or not key:
+        st.error("Variáveis SUPABASE_URL e SUPABASE_KEY não encontradas. Verifique seu .env.")
+        st.stop()
+    return create_client(url, key)
+
+supabase = get_supabase_client()
+
 
 USERS = {
     "IMPORT": "import123",

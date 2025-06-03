@@ -51,22 +51,27 @@ def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
         "empresa": empresa,
         "tipo_arquivo": tipo_arquivo,
         "imagem_base64": imagem_base64,
-        "descricao": descricao
+        "descricao": descricao,
+        "status": "Pendente"  # ✅ Sempre inicia como pendente
     }
     response = supabase.table('registro').insert(data).execute()
     return response
 
-def fetch_registro(filtro_empresa=None, filtro_tipo=None):
+def fetch_registro(filtro_empresa=None, filtro_status=None):
     query = supabase.table('registro').select("*")
     if filtro_empresa:
         query = query.in_("empresa", filtro_empresa)
-    if filtro_tipo:
-        query = query.in_("tipo_arquivo", filtro_tipo)
+    if filtro_status:
+        query = query.in_("status", filtro_status)
     response = query.execute()
     if hasattr(response, "error") and response.error:
         st.error(f"Erro ao buscar dados: {response.error.message}")
         return pd.DataFrame()
     return pd.DataFrame(response.data)
+
+def update_status_registro(registro_id, novo_status):
+    response = supabase.table('registro').update({"status": novo_status}).eq('id', registro_id).execute()
+    return response
 
 tipos_arquivos = [
     "NFE entrada", "NFE saída", "CTE entrada", "CTE saída", 
@@ -118,13 +123,13 @@ for idx, nome_aba in enumerate(tabs):
 
             df_todos = fetch_registro()
             empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
-            tipos_unicos = df_todos['tipo_arquivo'].unique() if not df_todos.empty else []
+            status_unicos = df_todos['status'].unique() if not df_todos.empty else []
 
             st.subheader("Filtros")
             filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
-            filtro_tipo = st.multiselect("Filtrar por Tipo de Arquivo:", tipos_unicos)
+            filtro_status = st.multiselect("Filtrar por Status:", status_unicos)
 
-            registro_filtrados = fetch_registro(filtro_empresa, filtro_tipo)
+            registro_filtrados = fetch_registro(filtro_empresa, filtro_status)
 
             st.subheader("Visualizar Detalhes dos Registros")
 
@@ -132,7 +137,7 @@ for idx, nome_aba in enumerate(tabs):
                 st.info("Nenhum registro encontrado com os filtros selecionados.")
             else:
                 for idx, registro in registro_filtrados.iterrows():
-                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']}"):
+                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro['status']}"):
                         if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
                             st.write(f"**Descrição:** {registro['descricao']}")
                         else:
@@ -140,6 +145,12 @@ for idx, nome_aba in enumerate(tabs):
 
                         if pd.notna(registro["imagem_base64"]):
                             st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+
+                        # ✅ Botão para alterar status para OK
+                        if registro['status'] == "Pendente":
+                            if st.button(f"Marcar como OK - ID: {registro['id']}", key=f"ok_{registro['id']}"):
+                                update_status_registro(registro['id'], "OK")
+                                st.success("Status alterado para OK. Recarregue a página.")
 
             st.subheader("Exportar Registros Filtrados")
             col1, col2 = st.columns(2)

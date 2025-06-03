@@ -8,18 +8,10 @@ from dotenv import load_dotenv
 import os
 from supabase import create_client
 
-# Carregar as variáveis do .env
-def get_supabase_client():
-    load_dotenv()
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
 
-    if not url or not key:
-        st.error("Variáveis SUPABASE_URL e SUPABASE_KEY não encontradas. Verifique seu .env.")
-        st.stop()
-    return create_client(url, key)
-
-supabase = get_supabase_client()
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 USERS = {

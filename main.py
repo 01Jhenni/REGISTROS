@@ -52,7 +52,7 @@ def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
         "tipo_arquivo": tipo_arquivo,
         "imagem_base64": imagem_base64,
         "descricao": descricao,
-        "status": "Pendente"  # ✅ Sempre inicia como pendente
+        "status": status # ✅ Sempre inicia como pendente
     }
     response = supabase.table('registro').insert(data).execute()
     return response

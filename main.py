@@ -1,51 +1,25 @@
 import streamlit as st
 import pandas as pd
-from PIL import Image
-import io
 import base64
 from supabase import create_client, Client
+from PIL import Image
+import io
 
-SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Configuração do Supabase
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
-USERS = {
-    "IMPORT": "import123",
-    "FISCAL": "fisc123"
-}
-
-PERMISSIONS = {
-    "IMPORT": {"can_register": True, "can_view": True},
-    "FISCAL": {"can_register": False, "can_view": True}
-}
-
-def login():
-    st.title("🔐 Login")
-    username = st.text_input("Usuário:")
-    password = st.text_input("Senha:", type="password")
-    if st.button("Entrar"):
-        if username in USERS and USERS[username] == password:
-            st.session_state['logged_in'] = True
-            st.session_state['username'] = username
-            st.session_state['permissions'] = PERMISSIONS.get(username, {"can_register": False, "can_view": False})
-        else:
-            st.error("Usuário ou senha incorretos")
-
-if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = False
-    st.session_state['username'] = None
-    st.session_state['permissions'] = {"can_register": False, "can_view": False}
-
-if not st.session_state['logged_in']:
-    login()
-    st.stop()
-
+# Função para converter imagem para base64
 def image_to_base64(image_file):
-    return base64.b64encode(image_file.read()).decode()
+    return base64.b64encode(image_file.read()).decode("utf-8")
 
+# Função para converter base64 para imagem
 def base64_to_image(base64_str):
-    return Image.open(io.BytesIO(base64.b64decode(base64_str)))
+    image_data = base64.b64decode(base64_str)
+    return Image.open(io.BytesIO(image_data))
 
+# Função para inserir registro com status
 def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
     status = "pendente" if imagem_base64 or descricao else "ok"
     data = {
@@ -58,7 +32,7 @@ def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
     response = supabase.table('registro').insert(data).execute()
     return response
 
-
+# Função para buscar registros com filtros
 def fetch_registro(filtro_empresa=None, filtro_status=None):
     query = supabase.table('registro').select("*")
     if filtro_empresa:
@@ -71,57 +45,42 @@ def fetch_registro(filtro_empresa=None, filtro_status=None):
         return pd.DataFrame()
     return pd.DataFrame(response.data)
 
-
-def update_status_registro(registro_id, novo_status):
+# Função para atualizar status
+def update_status(registro_id, novo_status):
     response = supabase.table('registro').update({"status": novo_status}).eq('id', registro_id).execute()
     return response
 
-tipos_arquivos = [
-    "NFE entrada", "NFE saída", "CTE entrada", "CTE saída", 
-    "CTE cancelado", "SPED", "NFCE", "NFS tomado", "NFS prestado", "PLANILHA"
-]
+# Título principal
+st.title("Sistema de Registros")
 
-empresas_df = pd.read_csv("empresas (2).csv", encoding='latin1', sep=';')
-empresas_df.columns = empresas_df.columns.str.strip().str.lower()
+# Seleção de abas
+abas = ["Cadastrar Registro", "Visualizar Registro"]
+nome_aba = st.sidebar.radio("Escolha a opção:", abas)
 
-if 'nome' not in empresas_df.columns or 'cnpj' not in empresas_df.columns:
-    st.error("CSV deve conter colunas 'nome' e 'cnpj'.")
-    st.stop()
+# Aba de Cadastro
+if nome_aba == "Cadastrar Registro":
+    st.header("Cadastro de Novo Registro")
 
-empresas = dict(zip(empresas_df['nome'], empresas_df['cnpj']))
+    empresa = st.text_input("Empresa")
+    tipo_arquivo = st.selectbox("Tipo de Arquivo", ["XML", "PDF", "Imagem"])
+    descricao = st.text_area("Descrição do Erro")
 
-st.set_page_config(page_title="Registro de Importações", layout="wide")
-st.title(f"📑 Sistema de Registro e Consulta de Importações — Usuário: {st.session_state['username']}")
+    imagem_file = st.file_uploader("Upload de Imagem (opcional)", type=["png", "jpg", "jpeg"])
 
-tabs = []
-if st.session_state['permissions']['can_register']:
-    tabs.append("Registrar Importação")
-if st.session_state['permissions']['can_view']:
-    tabs.append("Visualizar Registro")
+    if imagem_file:
+        imagem_base64 = image_to_base64(imagem_file)
+    else:
+        imagem_base64 = None
 
-abas = st.tabs(tabs)
+    if st.button("Cadastrar"):
+        response = insert_registro(empresa, tipo_arquivo, imagem_base64, descricao)
+        if hasattr(response, "error") and response.error:
+            st.error(f"Erro ao inserir registro: {response.error.message}")
+        else:
+            st.success("Registro cadastrado com sucesso!")
 
-for idx, nome_aba in enumerate(tabs):
-    with abas[idx]:
-        if nome_aba == "Registrar Importação":
-            st.header("Registrar uma nova importação")
-
-            empresa = st.selectbox("Nome da Empresa:", list(empresas.keys()))
-            cnpj = empresas[empresa]
-            tipo_arquivo = st.selectbox("Tipo de Arquivo Importado:", tipos_arquivos)
-            imagem_erro = st.file_uploader("Anexe uma imagem do erro (opcional):", type=["png", "jpg", "jpeg"])
-            descricao = st.text_area("Descrição do erro (opcional):")
-
-            if st.button("Registrar Importação"):
-                imagem_base64 = None
-                if imagem_erro:
-                    imagem_base64 = image_to_base64(imagem_erro)
-
-                registro_empresa = f"{empresa} - {cnpj}"
-                insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao)
-                st.success("Importação registrada com sucesso!")
-
-        elif nome_aba == "Visualizar Registro":
+# Aba de Visualização
+elif nome_aba == "Visualizar Registro":
     st.header("Visualização e Filtros de Registros")
 
     df_todos = fetch_registro()
@@ -132,14 +91,14 @@ for idx, nome_aba in enumerate(tabs):
     filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
     filtro_status = st.multiselect("Filtrar por Status:", status_unicos)
 
-    registro_filtrados = fetch_registro(filtro_empresa, filtro_status)
+    registros_filtrados = fetch_registro(filtro_empresa, filtro_status)
 
     st.subheader("Visualizar Detalhes dos Registros")
 
-    if registro_filtrados.empty:
+    if registros_filtrados.empty:
         st.info("Nenhum registro encontrado com os filtros selecionados.")
     else:
-        for idx, registro in registro_filtrados.iterrows():
+        for idx, registro in registros_filtrados.iterrows():
             with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro['status']}"):
                 st.write(f"**Status:** {registro['status']}")
 
@@ -151,15 +110,24 @@ for idx, nome_aba in enumerate(tabs):
                 if pd.notna(registro["imagem_base64"]):
                     st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
 
+                if registro['status'] == 'pendente':
+                    if st.button(f"Marcar como OK - ID {registro['id']}", key=f"ok_{registro['id']}"):
+                        response = update_status(registro['id'], "ok")
+                        if hasattr(response, "error") and response.error:
+                            st.error(f"Erro ao atualizar status: {response.error.message}")
+                        else:
+                            st.success(f"Status do registro {registro['id']} atualizado para 'ok'.")
+                            st.experimental_rerun()
+
     st.subheader("Exportar Registros Filtrados")
     col1, col2 = st.columns(2)
 
     with col1:
         if st.button("Exportar para Excel"):
-            registro_filtrados.to_excel("registro_filtrados.xlsx", index=False)
+            registros_filtrados.to_excel("registro_filtrados.xlsx", index=False)
             st.success("Arquivo 'registro_filtrados.xlsx' gerado com sucesso!")
 
     with col2:
         if st.button("Exportar para CSV"):
-            registro_filtrados.to_csv("registro_filtrados.csv", index=False)
+            registros_filtrados.to_csv("registro_filtrados.csv", index=False)
             st.success("Arquivo 'registro_filtrados.csv' gerado com sucesso!")

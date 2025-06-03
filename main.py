@@ -62,17 +62,41 @@ def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao, status):
     response = supabase.table('registro').insert(data).execute()
     return response
 
+import streamlit as st
+import pandas as pd
+
 def fetch_registro(filtro_empresa=None, filtro_status=None):
-    query = supabase.table('registro').select("*")
-    if filtro_empresa:
-        query = query.in_("empresa", filtro_empresa)
-    if filtro_status:
-        query = query.in_("status", filtro_status)
-    response = query.execute()
-    if hasattr(response, "error") and response.error:
-        st.error(f"Erro ao buscar dados: {response.error.message}")
+    try:
+        query = supabase.table('registro').select("*")
+
+        # Garantir que filtros são listas, se não None
+        if filtro_empresa:
+            if not isinstance(filtro_empresa, (list, tuple)):
+                filtro_empresa = [filtro_empresa]
+            query = query.in_("empresa", filtro_empresa)
+
+        if filtro_status:
+            if not isinstance(filtro_status, (list, tuple)):
+                filtro_status = [filtro_status]
+            # Verifique o nome correto da coluna no banco
+            query = query.in_("status", filtro_status)
+
+        response = query.execute()
+
+        if hasattr(response, "error") and response.error:
+            st.error(f"Erro ao buscar dados: {response.error.message}")
+            return pd.DataFrame()
+
+        # Confirmar que a resposta tem dados
+        if response.data is None:
+            return pd.DataFrame()
+
+        return pd.DataFrame(response.data)
+
+    except Exception as e:
+        st.error(f"Erro inesperado ao buscar registros: {e}")
         return pd.DataFrame()
-    return pd.DataFrame(response.data)
+
 
 def update_status_registro(id_registro, novo_status):
     response = supabase.table('registro').update({"status": novo_status}).eq("id", id_registro).execute()

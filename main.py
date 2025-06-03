@@ -6,6 +6,7 @@ import base64
 from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
+from supabase import create_client
 
 # Carregar as variáveis do .env
 load_dotenv()

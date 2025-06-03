@@ -47,15 +47,17 @@ def base64_to_image(base64_str):
     return Image.open(io.BytesIO(base64.b64decode(base64_str)))
 
 def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
+    status = "pendente" if imagem_base64 or descricao else "ok"
     data = {
         "empresa": empresa,
         "tipo_arquivo": tipo_arquivo,
         "imagem_base64": imagem_base64,
         "descricao": descricao,
-        "status": status # ✅ Sempre inicia como pendente
+        "status": status
     }
     response = supabase.table('registro').insert(data).execute()
     return response
+
 
 def fetch_registro(filtro_empresa=None, filtro_status=None):
     query = supabase.table('registro').select("*")

@@ -4,20 +4,26 @@ from PIL import Image
 import io
 import base64
 from supabase import create_client, Client
+from dotenv import load_dotenv
+import os
 
-# Conexão com Supabase
-SUPABASE_URL = "https://dirvujbiaqfvlxizjnax.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpcnZ1amJpYXFmdmx4aXpqbmF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MDIxNTgsImV4cCI6MjA1OTE3ODE1OH0.Tn6-iLi6LgQtKT_mK5cJeQYG8FDHN2pCkaNU1Bhzmas"
+# Carregar as variáveis do .env
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Usuários e permissões
-USERS = {"IMPORT": "import123", "FISCAL": "fisc123"}
+USERS = {
+    "IMPORT": "import123",
+    "FISCAL": "fisc123"
+}
+
 PERMISSIONS = {
     "IMPORT": {"can_register": True, "can_view": True},
     "FISCAL": {"can_register": False, "can_view": True}
 }
 
-# Login
 def login():
     st.title("🔐 Login")
     username = st.text_input("Usuário:")
@@ -39,20 +45,19 @@ if not st.session_state['logged_in']:
     login()
     st.stop()
 
-# Funções auxiliares
 def image_to_base64(image_file):
     return base64.b64encode(image_file.read()).decode()
 
 def base64_to_image(base64_str):
     return Image.open(io.BytesIO(base64.b64decode(base64_str)))
 
-def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao):
+def insert_registro(empresa, tipo_arquivo, imagem_base64, descricao, status):
     data = {
         "empresa": empresa,
         "tipo_arquivo": tipo_arquivo,
         "imagem_base64": imagem_base64,
         "descricao": descricao,
-        "status": "Pendente"
+        "status": status
     }
     response = supabase.table('registro').insert(data).execute()
     return response
@@ -69,10 +74,10 @@ def fetch_registro(filtro_empresa=None, filtro_status=None):
         return pd.DataFrame()
     return pd.DataFrame(response.data)
 
-def update_status_registro(registro_id, novo_status):
-    supabase.table('registro').update({"status": novo_status}).eq("id", registro_id).execute()
+def update_status_registro(id_registro, novo_status):
+    response = supabase.table('registro').update({"status": novo_status}).eq("id", id_registro).execute()
+    return response
 
-# Configurações e dados
 tipos_arquivos = [
     "NFE entrada", "NFE saída", "CTE entrada", "CTE saída", 
     "CTE cancelado", "SPED", "NFCE", "NFS tomado", "NFS prestado", "PLANILHA"
@@ -115,7 +120,14 @@ for idx, nome_aba in enumerate(tabs):
                     imagem_base64 = image_to_base64(imagem_erro)
 
                 registro_empresa = f"{empresa} - {cnpj}"
-                insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao)
+
+                # Define status pendente se tiver erro (imagem ou descrição), senão 'Ok'
+                if imagem_base64 or (descricao and descricao.strip() != ''):
+                    status = "Pendente"
+                else:
+                    status = "Ok"
+
+                insert_registro(registro_empresa, tipo_arquivo, imagem_base64, descricao, status)
                 st.success("Importação registrada com sucesso!")
 
         elif nome_aba == "Visualizar Registro":
@@ -123,11 +135,15 @@ for idx, nome_aba in enumerate(tabs):
 
             df_todos = fetch_registro()
             empresas_unicas = df_todos['empresa'].unique() if not df_todos.empty else []
-            status_unicos = df_todos['status'].unique() if not df_todos.empty else []
+
+            if not df_todos.empty and 'status' in df_todos.columns:
+                status_unicos = df_todos['status'].unique()
+            else:
+                status_unicos = []
 
             st.subheader("Filtros")
             filtro_empresa = st.multiselect("Filtrar por Empresa:", empresas_unicas)
-            filtro_status = st.multiselect("Filtrar por Status:", status_unicos)
+            filtro_status = st.multiselect("Filtrar por Status do Erro:", status_unicos)
 
             registro_filtrados = fetch_registro(filtro_empresa, filtro_status)
 
@@ -137,19 +153,24 @@ for idx, nome_aba in enumerate(tabs):
                 st.info("Nenhum registro encontrado com os filtros selecionados.")
             else:
                 for idx, registro in registro_filtrados.iterrows():
-                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro['status']}"):
+                    with st.expander(f"🔍 {registro['empresa']} - {registro['tipo_arquivo']} - Status: {registro.get('status', 'Desconhecido')}"):
                         if 'descricao' in registro and pd.notna(registro['descricao']) and registro['descricao'].strip() != '':
                             st.write(f"**Descrição:** {registro['descricao']}")
                         else:
                             st.write("**Descrição:** Nenhuma descrição informada.")
 
-                        if pd.notna(registro["imagem_base64"]):
-                            st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+                        if pd.notna(registro.get("imagem_base64")):
+                            try:
+                                st.image(base64_to_image(registro["imagem_base64"]), caption="Imagem do Erro", use_container_width=True)
+                            except Exception as e:
+                                st.write("Erro ao carregar a imagem.")
 
-                        if registro['status'] == "Pendente":
-                            if st.button(f"Marcar como Resolvido (OK) - ID: {registro['id']}", key=f"btn_{registro['id']}"):
-                                update_status_registro(registro['id'], "OK")
-                                st.success("Status atualizado para OK. Atualize a página.")
+                        # Permitir alterar o status para Ok se estiver Pendente
+                        if registro.get('status') == "Pendente":
+                            if st.button(f"Marcar como OK (ID: {registro['id']})", key=f"btn_ok_{registro['id']}"):
+                                update_status_registro(registro['id'], "Ok")
+                                st.success(f"Status do registro ID {registro['id']} atualizado para OK!")
+                                st.experimental_rerun()
 
             st.subheader("Exportar Registros Filtrados")
             col1, col2 = st.columns(2)

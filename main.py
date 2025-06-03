@@ -13,7 +13,6 @@ load_dotenv()
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 
-supabase: Client = create_client(url, key)
 
 # Função para converter imagem para base64
 def image_to_base64(image_file):
